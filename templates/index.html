@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignBridge 2.0</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>SignBridge <span>Web</span></h1>
+
+    <div class="container">
+        <div class="video-box">
+            <img id="videoElement" src="" alt="Video Stream">
+        </div>
+
+        <div class="chat-box">
+            <h3>Constructed Sentence:</h3>
+            <div class="chat-display" id="chatDisplay">
+                <p style="color: gray; font-style: italic;">Start signing to build a sentence...</p>
+            </div>
+            
+            <div class="sentence-box" id="currentSentence"></div>
+            
+            <div class="controls">
+                <button onclick="clearSentence()">Clear Sentence</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status">Current Detection: <span id="statusText">...</span></div>
+
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+    <video id="webcam" width="640" height="480" style="display:none;" autoplay playsinline></video>
+
+    <script>
+        const socket = io();
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const videoImage = document.getElementById('videoElement');
+        const statusText = document.getElementById('statusText');
+        const currentSentenceDiv = document.getElementById('currentSentence');
+        let sentence = [];
+
+        // --- NEW CAMERA SELECTION LOGIC ---
+        async function startCamera() {
+            try {
+                // 1. List all connected devices
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                
+                // 2. Filter out only video inputs (cameras)
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                console.log("Cameras found:", videoDevices);
+
+                let constraints = { video: true }; // Default fallback
+
+                // 3. Check if we have more than 1 camera
+                if (videoDevices.length > 1) {
+                    // Select the SECOND camera (Index 1)
+                    // Index 0 is usually the built-in Laptop Webcam
+                    // Index 1 is usually the External/Mobile Webcam
+                    const secondaryCameraId = videoDevices[1].deviceId;
+                    
+                    constraints = { 
+                        video: { 
+                            deviceId: { exact: secondaryCameraId },
+                            width: 640,
+                            height: 480
+                        } 
+                    };
+                    console.log("Switching to secondary camera: " + videoDevices[1].label);
+                } else {
+                    console.log("Only one camera found. Using default.");
+                }
+
+                // 4. Start the camera with the chosen constraints
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+
+            } catch (err) {
+                console.error("Error accessing webcam:", err);
+                alert("Could not access the secondary camera. Check console for details.");
+            }
+        }
+
+        // Initialize
+        startCamera();
+        // ----------------------------------
+
+        // Send Frames to Python
+        setInterval(() => {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                context.drawImage(video, 0, 0, 640, 480);
+                const dataURL = canvas.toDataURL('image/jpeg', 0.5);
+                socket.emit('video_frame', dataURL);
+            }
+        }, 100);
+
+        // Receive Processed AR Image
+        socket.on('response_back', function(data) {
+            videoImage.src = data.image;
+            statusText.innerText = data.status;
+        });
+
+        // Receive New Word
+        socket.on('new_word', function(data) {
+            let word = data.word;
+            sentence.push(word);
+            updateDisplay();
+            
+            currentSentenceDiv.style.backgroundColor = "#005544";
+            setTimeout(() => { currentSentenceDiv.style.backgroundColor = "#222"; }, 300);
+        });
+
+        function updateDisplay() {
+            let fullText = sentence.join(" ");
+            currentSentenceDiv.innerText = fullText;
+            const chatDisplay = document.getElementById('chatDisplay');
+            chatDisplay.innerHTML += `<div>${fullText}</div>`;
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+        }
+
+        function clearSentence() {
+            sentence = [];
+            currentSentenceDiv.innerText = "";
+            document.getElementById('chatDisplay').innerHTML = '<p style="color: gray;">Cleared.</p>';
+        }
+    </script>
+</body>
+</html>

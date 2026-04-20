@@ -16,7 +16,7 @@ detector = HandSignDetector()
 current_sign = ""
 last_sign = ""
 hold_start_time = 0
-CONFIRMATION_TIME = 2.0  # <--- CHANGED: Reduced to 2 seconds
+CONFIRMATION_TIME = 2.0  
 
 @app.route('/')
 def index():
@@ -71,17 +71,12 @@ def handle_video(data_image):
         detected_word, confidence = detector.predict(lm_list)
 
         # --- DRAWING THE BOX AND PERCENTAGE ---
-        # Only draw if it's NOT "Nothing" and confidence is good
         if detected_word != "Nothing" and confidence > 50:
             color = (255, 0, 255) # Purple neon
             
-            # Draw Rectangle
             cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), color, 2)
-            
-            # Draw Label Background
             cv2.rectangle(frame, (x_min, y_min - 45), (x_max, y_min), color, cv2.FILLED)
             
-            # Draw Text (Sign Name + Percentage)
             label_text = f"{detected_word} {int(confidence)}%"
             cv2.putText(frame, label_text, (x_min + 5, y_min - 10), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
@@ -90,8 +85,10 @@ def handle_video(data_image):
     if detected_word != "Unknown" and detected_word != "Nothing" and confidence > 60:
         if detected_word == last_sign:
             if (time.time() - hold_start_time) > CONFIRMATION_TIME:
-                # TIMEOUT REACHED! Send word
+                
+                # TIMEOUT REACHED! Send word to frontend
                 socketio.emit('new_word', {'word': detected_word})
+                
                 detected_word = "..." 
                 last_sign = ""        
         else:
@@ -106,8 +103,6 @@ def handle_video(data_image):
     
     emit('response_back', {'image': 'data:image/jpeg;base64,' + frame_encoded, 'status': detected_word})
 
+
 if __name__ == '__main__':
     socketio.run(app, debug=True)
-
-    
-    

@@ -114,6 +114,14 @@
             sentence.push(word);
             updateDisplay();
             
+            // --- NEW: WEB SPEECH API (TEXT-TO-SPEECH) ---
+            let utterance = new SpeechSynthesisUtterance(word);
+            // Optional: You can adjust pitch and rate here if you want
+            // utterance.pitch = 1;
+            // utterance.rate = 1;
+            window.speechSynthesis.speak(utterance);
+            // ---------------------------------------------
+            
             currentSentenceDiv.style.backgroundColor = "#005544";
             setTimeout(() => { currentSentenceDiv.style.backgroundColor = "#222"; }, 300);
         });
@@ -122,14 +130,16 @@
             let fullText = sentence.join(" ");
             currentSentenceDiv.innerText = fullText;
             const chatDisplay = document.getElementById('chatDisplay');
-            chatDisplay.innerHTML += `<div>${fullText}</div>`;
+            
+            // Replaced the simple append with a cleaner update so it doesn't duplicate the whole array
+            chatDisplay.innerHTML = `<p style="color: white; padding: 5px;">${fullText}</p>`;
             chatDisplay.scrollTop = chatDisplay.scrollHeight;
         }
 
         function clearSentence() {
             sentence = [];
             currentSentenceDiv.innerText = "";
-            document.getElementById('chatDisplay').innerHTML = '<p style="color: gray;">Cleared.</p>';
+            document.getElementById('chatDisplay').innerHTML = '<p style="color: gray; font-style: italic;">Cleared. Start signing...</p>';
         }
     </script>
 </body>

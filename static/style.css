@@ -7,33 +7,60 @@
     box-sizing: border-box;
 }
 
+/* --- 2. Body & Video Background --- */
 body {
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: #0d0d0d; /* Deep Black Background */
+    background-color: #000000; /* Pure black fallback */
     color: #e0e0e0;
     display: flex;
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
     padding: 20px;
+    position: relative;
+    overflow-x: hidden; 
 }
 
-/* --- 2. Header Styling --- */
+/* Hardware-accelerated full-viewport mapping for your video asset */
+.bg-video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover; /* Prevents layout stretching across different displays */
+    z-index: -5; /* Standardized to stay behind all layout systems */
+    opacity: 0.85; /* Softly dims the illumination to balance panel readability */
+}
+
+/* --- 3. Header & Branding Styling --- */
+.header-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 10px;
+    z-index: 1; 
+}
+
+.brand-logo {
+    width: 60px;
+    height: auto;
+    filter: brightness(0) invert(1); 
+}
+
 h1 {
     font-size: 3rem;
     font-weight: 800;
-    color: #fff;
+    color: #ffffff;
     text-transform: uppercase;
     letter-spacing: 4px;
-    margin-bottom: 10px;
-    text-shadow: 0 0 10px rgba(0, 243, 255, 0.7); /* Neon Cyan Glow */
 }
 
 h1 span {
-    color: #00f3ff; /* Cyan Accent for "Bridge" */
+    color: #aaaaaa; 
 }
 
-/* --- 3. Main Layout Container --- */
+/* --- 4. Main Layout Container --- */
 .container {
     display: flex;
     flex-wrap: wrap;
@@ -42,17 +69,21 @@ h1 span {
     width: 100%;
     max-width: 1200px;
     margin-top: 20px;
+    z-index: 1;
 }
 
-/* --- 4. Video Feed ("The Eye") --- */
+/* --- 5. Video Feed ("The Eye") --- */
 .video-box {
     position: relative;
     width: 640px;
     height: 480px;
-    background: #000;
-    border: 2px solid #333;
-    border-radius: 12px;
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.2); /* Subtle glow */
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
     overflow: hidden;
 }
 
@@ -61,73 +92,124 @@ h1 span {
     height: 100%;
     object-fit: cover;
     display: block;
+    opacity: 0.95; 
 }
 
-/* --- 5. Chat & Intelligence Hub --- */
+/* --- 6. Chat & Intelligence Hub --- */
 .chat-box {
     flex: 1;
     min-width: 300px;
     max-width: 450px;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 16px;
     padding: 25px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
 }
 
 .chat-box h3 {
-    color: #00ff41; /* Hacker Green */
+    color: #ffffff; 
     font-size: 1.2rem;
     margin-bottom: 15px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding-bottom: 10px;
+    opacity: 0.9;
 }
 
 /* The scrolling history area */
 .chat-display {
     flex-grow: 1;
-    background: #0d0d0d;
-    border: 1px solid #333;
-    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
     padding: 15px;
     overflow-y: auto;
-    font-family: 'Courier New', monospace; /* Code-like font */
-    color: #aaa;
+    font-family: 'Courier New', monospace;
+    color: #e0e0e0;
     font-size: 16px;
     margin-bottom: 20px;
     height: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Inline injection target for dynamic script handling */
+.playable-sentence {
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    border-radius: 4px;
+    padding: 2px 5px;
+}
+
+.playable-sentence:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+.history-sentence {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    background: transparent;
+}
+
+.history-sentence:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.history-text {
+    flex-grow: 1;
 }
 
 /* The active sentence box */
 .sentence-box {
-    background: #222;
-    border-left: 4px solid #00f3ff;
-    padding: 20px;
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-left: 3px solid #ffffff;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 15px 20px;
+    border-radius: 12px;
     min-height: 70px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.current-text {
     font-size: 24px;
     color: #fff;
     font-weight: bold;
-    display: flex;
-    align-items: center;
-    transition: background-color 0.3s ease;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.6);
 }
 
-/* --- 6. Controls & Status --- */
+/* --- 7. Controls & Buttons --- */
 .controls {
     margin-top: 20px;
     display: flex;
     justify-content: flex-end;
+    gap: 15px;
 }
 
 button {
-    background: transparent;
-    border: 2px solid #ff4444;
-    color: #ff4444;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     padding: 10px 25px;
     font-size: 16px;
     font-weight: bold;
@@ -135,40 +217,74 @@ button {
     cursor: pointer;
     transition: all 0.3s ease;
     text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
 }
 
 button:hover {
-    background: #ff4444;
-    color: white;
-    box-shadow: 0 0 15px rgba(255, 68, 68, 0.6);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
 }
 
+.btn-play {
+    color: #ffffff;
+    padding: 8px 20px;
+    font-size: 14px;
+}
+
+.icon-play-small {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    backdrop-filter: none;
+    opacity: 0.6;
+}
+
+.icon-play-small:hover {
+    background: rgba(255, 255, 255, 0.2);
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+/* --- 8. Status Indicator --- */
 .status {
     margin-top: 20px;
     font-size: 14px;
-    color: #666;
-    background: #111;
-    padding: 8px 15px;
+    color: #cccccc;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 8px 20px;
     border-radius: 20px;
-    border: 1px solid #222;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 1;
 }
 
 #statusText {
-    color: #00f3ff;
+    color: #ffffff;
     font-weight: bold;
 }
 
-/* --- 7. Scrollbar Styling (Webkit) --- */
-::-webkit-scrollbar {
-    width: 8px;
+@keyframes blink {
+    0% { opacity: .2; }
+    20% { opacity: 1; }
+    100% { opacity: .2; }
 }
-::-webkit-scrollbar-track {
-    background: #0d0d0d; 
+.loading-dots {
+    animation: blink 1.4s infinite both;
 }
-::-webkit-scrollbar-thumb {
-    background: #333; 
-    border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #00f3ff; 
-}
+
+/* --- 9. Scrollbar Styling --- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.4); border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }

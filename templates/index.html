@@ -7,9 +7,14 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
+
+    <video class="bg-video" autoplay loop muted playsinline>
+        <source src="static/iridescent_background.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
 
     <h1>SignBridge <span>Web</span></h1>
 
@@ -21,13 +26,14 @@
         <div class="chat-box">
             <h3>Constructed Sentence:</h3>
             <div class="chat-display" id="chatDisplay">
-                <p style="color: gray; font-style: italic;">Start signing to build a sentence...</p>
+                <p style="color: rgba(255, 255, 255, 0.4); font-style: italic;">Start signing to build a sentence...</p>
             </div>
             
             <div class="sentence-box" id="currentSentence"></div>
             
             <div class="controls">
-                <button onclick="clearSentence()">Clear Sentence</button>
+                <button class="btn-clear" onclick="clearSentence()">Clear Sentence</button>
+                <button class="btn-play" onclick="playSentence()">Play Latest Sentence 🔊</button>
             </div>
         </div>
     </div>
@@ -45,28 +51,21 @@
         const videoImage = document.getElementById('videoElement');
         const statusText = document.getElementById('statusText');
         const currentSentenceDiv = document.getElementById('currentSentence');
-        let sentence = [];
+        
+        let currentLiveTokens = []; // Buffers current active words
+        let correctionTimer = null; // Tracks the 3-second sentence boundary pause
+        const newSentenceDelay = 3000; // 3 seconds: A perfect balance for signing transitions
 
-        // --- NEW CAMERA SELECTION LOGIC ---
+        // --- CAMERA SELECTION LOGIC ---
         async function startCamera() {
             try {
-                // 1. List all connected devices
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                
-                // 2. Filter out only video inputs (cameras)
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 
-                console.log("Cameras found:", videoDevices);
+                let constraints = { video: true }; 
 
-                let constraints = { video: true }; // Default fallback
-
-                // 3. Check if we have more than 1 camera
                 if (videoDevices.length > 1) {
-                    // Select the SECOND camera (Index 1)
-                    // Index 0 is usually the built-in Laptop Webcam
-                    // Index 1 is usually the External/Mobile Webcam
                     const secondaryCameraId = videoDevices[1].deviceId;
-                    
                     constraints = { 
                         video: { 
                             deviceId: { exact: secondaryCameraId },
@@ -74,24 +73,18 @@
                             height: 480
                         } 
                     };
-                    console.log("Switching to secondary camera: " + videoDevices[1].label);
-                } else {
-                    console.log("Only one camera found. Using default.");
                 }
 
-                // 4. Start the camera with the chosen constraints
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
 
             } catch (err) {
                 console.error("Error accessing webcam:", err);
-                alert("Could not access the secondary camera. Check console for details.");
+                alert("Could not access the camera.");
             }
         }
 
-        // Initialize
         startCamera();
-        // ----------------------------------
 
         // Send Frames to Python
         setInterval(() => {
@@ -108,38 +101,98 @@
             statusText.innerText = data.status;
         });
 
-        // Receive New Word
+        // Receive New Word Token from Computer Vision Model
         socket.on('new_word', function(data) {
             let word = data.word;
-            sentence.push(word);
-            updateDisplay();
             
-            // --- NEW: WEB SPEECH API (TEXT-TO-SPEECH) ---
+            // Push token into live list and update view container
+            currentLiveTokens.push(word);
+            currentSentenceDiv.innerText = currentLiveTokens.join(" ");
+
+            // Text-to-Speech Engine: Live word vocalization
             let utterance = new SpeechSynthesisUtterance(word);
-            // Optional: You can adjust pitch and rate here if you want
-            // utterance.pitch = 1;
-            // utterance.rate = 1;
             window.speechSynthesis.speak(utterance);
-            // ---------------------------------------------
+
+            // Active State Glass Visual Pulse Accent
+            currentSentenceDiv.style.backgroundColor = "rgba(255, 255, 255, 0.15)";
+            setTimeout(() => { currentSentenceDiv.style.backgroundColor = "transparent"; }, 300);
+
+            // --- SMART TIMER BOUNDARY MONITORING ---
+            // Clear countdown tracking if user continues gesturing
+            clearTimeout(correctionTimer);
             
-            currentSentenceDiv.style.backgroundColor = "#005544";
-            setTimeout(() => { currentSentenceDiv.style.backgroundColor = "#222"; }, 300);
+            // Re-instantiate a 3-second boundary window
+            correctionTimer = setTimeout(() => {
+                triggerGrammarCorrection();
+            }, newSentenceDelay);
         });
 
-        function updateDisplay() {
-            let fullText = sentence.join(" ");
-            currentSentenceDiv.innerText = fullText;
-            const chatDisplay = document.getElementById('chatDisplay');
-            
-            // Replaced the simple append with a cleaner update so it doesn't duplicate the whole array
-            chatDisplay.innerHTML = `<p style="color: white; padding: 5px;">${fullText}</p>`;
-            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+        // Pack sentence tokens and push upstream for AI processing
+        function triggerGrammarCorrection() {
+            let completeRawString = currentLiveTokens.join(" ").stripResponse();
+            if (completeRawString !== "") {
+            currentSentenceDiv.innerHTML = `<span style="opacity: 0.6; font-size: 20px; font-style: italic;">Translating<span class="loading-dots">...</span></span>`;
+                socket.emit('request_grammar_correction', { raw_text: completeRawString });
+                currentLiveTokens = []; // Clear current buffer for upcoming stream
+            }
         }
 
+        // Helper string utility
+        String.prototype.stripResponse = function() {
+            return this.replace(/^\s+|\s+$/g, '');
+        };
+
+        // Stream parsed AI correction back down to history feed
+        socket.on('grammar_corrected', function(data) {
+            const chatDisplay = document.getElementById('chatDisplay');
+            
+            // If placeholder text exists, empty it out
+            if (chatDisplay.innerHTML.includes("Start signing")) {
+                chatDisplay.innerHTML = "";
+            }
+
+            // Create interactive glass block component wrapping the AI sentence
+            const sentenceBlock = document.createElement('div');
+            sentenceBlock.className = 'history-sentence';
+            
+            // Injecting the polished sentence with the raw sign tokens hidden faintly below it as a safety feature
+            sentenceBlock.innerHTML = `
+                <div class="playable-sentence" onclick="playSpecificSentence(this.querySelector('.polished-txt').innerText)" title="Click to speak">
+                    <p class="polished-txt" style="color: #ffffff; font-size: 16px; font-weight: 500;">${data.corrected_text}</p>
+                    <p class="raw-tokens" style="color: rgba(255,255,255,0.25); font-size: 12px; font-family: monospace; margin-top: 4px;">Raw signs: ${data.raw_text}</p>
+                </div>
+            `;
+            
+            chatDisplay.appendChild(sentenceBlock);
+            chatDisplay.scrollTop = chatDisplay.scrollHeight;
+            currentSentenceDiv.innerText = ""; // Empty out bottom box active view
+        });
+
         function clearSentence() {
-            sentence = [];
-            currentSentenceDiv.innerText = "";
-            document.getElementById('chatDisplay').innerHTML = '<p style="color: gray; font-style: italic;">Cleared. Start signing...</p>';
+            clearTimeout(correctionTimer);
+            currentLiveTokens = [];
+            currentSentenceDiv.innerHTML = "";
+            document.getElementById('chatDisplay').innerHTML = '<p style="color: rgba(255,255,255,0.4); font-style: italic;">Cleared. Start signing...</p>';
+        }
+
+        // --- PLAY SPECIFIC HISTORIC SENTENCE ON ELEMENT CLICK ---
+        function playSpecificSentence(text) {
+            if (text.trim() !== "") {
+                window.speechSynthesis.cancel(); 
+                let utterance = new SpeechSynthesisUtterance(text);
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- PLAY LATEST COMPLETED CONTEXT LOGIC ---
+        function playSentence() {
+            const sentences = document.querySelectorAll('.polished-txt');
+            if (sentences.length > 0) {
+                let textToPlay = sentences[sentences.length - 1].innerText;
+                window.speechSynthesis.cancel();
+                let utterance = new SpeechSynthesisUtterance(textToPlay);
+                window.speechSynthesis.speak(utterance);
+            }
         }
     </script>
 </body>
